@@ -1,0 +1,172 @@
+---
+title: "IRES Calicorema Capitata Leaf Water Potential 2023"
+author: "Isabel Torres, Daisy Amaro, Avery Swanton, Ben Kalenga"
+date: "7/23/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r} 
+
+library(ggplot2)
+library(cowplot)
+library(gplots)
+library(tidyverse)
+```
+
+```{r P data import and summary}
+data <- read.csv("lwp.csv")
+str(data)
+head(data)
+data$Location<- as.factor(data$Location)
+data$Treatment<- as.factor(data$Treatment)
+data$Date<- strptime(data$Date, format= "%m/%d/%y") #parses date into a date that R understands
+data$Date<- as.POSIXct(data$Date)
+
+
+```
+```{r}
+LWP.model<- lm(LWP..MPa.~Location*Treatment, data = data)
+LWP.model
+
+anova(LWP.model)
+
+```
+```{r}
+ggplot(data = data, aes(x = Date, y = LWP..MPa.)) +
+  geom_point(color = "red", lty = 1) +
+  theme_bw()
+
+
+```
+
+#boxplot 
+```{r}
+boxplot(data$LWP..MPa.~Treatment,data=data, main="Soil Water Potential of surface soils",
+   xlab="Treatment Type", ylab="Leaf Water Potential (Mpa)")
+
+boxplot(data$LWP..MPa.~data$Treatment * Date,data=data, col=(c("sky blue","pink","green")), main="Leaf Water Potential of surface soils",
+   xlab="Treatment and Date", ylab="Leaf Water Potential (Mpa)")
+legend(x = -800, y = 5, # Coordinates
+       legend = c("Control", "Treatment 1", "Treatment 2"),
+       lty = c(1, 2, 3),
+       col = c(4, 6, 3),
+       lwd = 3)
+```
+
+```{r}
+#For Control soils
+data_control <- subset(data, data$Treatment  == "Control", )
+data_control
+
+
+linear_regression_plot <- ggplot(data = data_control, aes(x = LWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_LWP_treatment_type<- lm(LWP..MPa. ~ Date*Location , data = data_control)
+summary(linear_model_LWP_treatment_type)
+
+plot(linear_model_LWP_treatment_type)
+
+boxplot(LWP..MPa.~Date,data=data_control, main="Leaf Water Potential of Control Plants",
+   xlab="Date", ylab="Leaf Water Potential (Mpa)")
+```
+```{r}
+#For Treatment 1 soils
+data_T1 <- subset(data, data$Treatment  == "SmallPulse", )
+data_T1
+
+
+linear_regression_plot <- ggplot(data = data_T1, aes(x = LWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_LWP_treatmentT1_type<- lm(LWP..MPa. ~ Date*Location , data = data_T1)
+summary(linear_model_LWP_treatmentT1_type)
+
+plot(linear_model_LWP_treatmentT1_type)
+
+boxplot(LWP..MPa.~Date,data=data_T1, main="Leaf Water Potential of Small Pulse Plants",
+   xlab="Date", ylab="Leaf Water Potential (Mpa)")
+```
+```{r}
+#For Treatment 2 soils
+data_T2 <- subset(data, data$Treatment  == "BigPulse", )
+data_T2
+
+
+linear_regression_plot <- ggplot(data = data_control, aes(x = LWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_LWP_treatmentT2_type<- lm(LWP..MPa. ~ Date*Location , data = data_T2)
+summary(linear_model_LWP_treatmentT2_type)
+
+plot(linear_model_LWP_treatmentT2_type)
+
+boxplot(LWP..MPa.~Date,data=data_T2, main="Leaf Water Potential of Treatment 2 Plants",
+   xlab="Date", ylab="Leaf Water Potential (Mpa)")
+```
+#geom ine, separate treatments over time, need IQR and error bars, using just the means. 
+```{r}
+CPlot <- ggplot(data = data_control, aes(x = Date, y = LWP..MPa.))+ geom_line(color = "black", lty = 1) +
+  theme_bw()
+T1Plot <- ggplot(data = data_T1, aes(x = Date, y = LWP..MPa.))+ geom_line(color = "blue", lty = 1) +
+  theme_bw()
+T2Plot <- ggplot(data = data_T2, aes(x = Date, y = LWP..MPa.))+ geom_line(color = "red", lty = 1) +
+  theme_bw()
+
+multiplot<- plot_grid(CPlot, T1Plot, T2Plot, labels = c('Control', 'Small Pulse', 'Big Pulse'))
+multiplot 
+ggsave(multiplot,file = "multiplot.jpeg", width=15, height = 15, units = "in")
+```
+#07/20 works
+```{r}
+LWPPlot <- ggplot(data = data, aes(x = Date, y = LWP..MPa.)) + geom_point(aes(color = Treatment, shape= Treatment))
+  theme_bw()
+  LWPPlot
+  
+LPlot <- ggplot(data = data, aes(x = Date, y = LWP..MPa.)) + geom_point(aes(color = Location, shape= Treatment))
+  theme_bw()
+  LPlot
+
+ggsave(LWPPlot,file = "multiplot.jpeg", width=15, height = 15, units = "in")
+
+#cali fake data r script analysis on usb 
+```
+# Reduce to one mean value for treatment per date -----------------------------------------------------
+from heather's code 
+# Reduce to one mean value for treatment per date -----------------------------------------------------
+```{r}
+LWP_trt_means <- data |> 
+  group_by(Date, Treatment) |> 
+  summarize(
+    N    = sum(!is.na(LWP..MPa.)),
+    mean.LWP = mean(LWP..MPa.),
+    sd_LWP   = sd(LWP..MPa., na.rm=TRUE), # not working at the moment...
+    se_LWP   = sd_LWP / sqrt(N) 
+  )
+
+# Quick plot -----------------------------------------------------
+
+LWP_plot<- LWP_trt_means |>
+  ggplot(aes(x = Date, y = mean.LWP)) +
+  geom_point(aes(color=Treatment)) +
+ geom_errorbar(aes(ymin=mean.LWP-se_LWP, ymax=mean.LWP+se_LWP)) +
+  geom_line(aes(color = Treatment))
+LWP_plot
+```
