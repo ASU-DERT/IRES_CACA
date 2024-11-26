@@ -1,0 +1,212 @@
+---
+title: "Calicorema Capitata Surface Soil Water Potentials"
+author: "Avery Swanton, Daisy Amaro, April Ibarra, Ben H, Isabel Torres"
+date: "7/1/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+All soil samples were collected at the surface level. 
+Treatment types are: -DN: dune nara -RO: river open
+                    -DO: dune open -RN: river open
+
+
+```{r} 
+library(lme4)
+library(ggplot2)
+library(cowplot)
+library(gplots)
+library(tidyverse)
+```
+
+```{r P data import and summary}
+data <- read.csv("swp.csv")
+str(data)
+head(data)
+data$Location<- as.factor(data$Location)
+data$Treatment<- as.factor(data$Treatment)
+data$Date<- strptime(data$Date, format= "%m/%d/%y") #parses date into a date that R understands
+data$Date<- as.POSIXct(data$Date)
+
+```
+
+
+```{r}
+SWP.model<- lm(SWP..MPa.~Location*Treatment, data = data)
+SWP.model
+
+anova(SWP.model)
+
+```
+
+#practice for 3 variable time series -works but not seprated by groups
+```{r}
+ggplot(data = data, aes(x = Date, y = SWP..MPa.)) +
+  geom_point(color = "red", lty = 1) +
+  theme_bw()
+
+
+```
+
+
+#works
+```{r}
+SWP.model2<- lm(SWP..MPa.~Treatment*Location, data = data)
+SWP.model2
+
+anova(SWP.model2)
+
+```
+
+
+```{r}
+ggplot(data = data, aes(x = Date, y = SWP..MPa.)) +
+  geom_line(color = "red", lty = 1) +
+  theme_bw()
+
+
+```
+
+
+#boxplot 
+```{r}
+boxplot(data$SWP..MPa.~Treatment,data=data, main="Soil Water Potential of surface soils",
+   xlab="Treatment Type", ylab="Soil Water Potential (Mpa)")
+
+boxplot(data$SWP..MPa.~data$Treatment * Date,data=data, col=(c("red","orange","blue")), main="Soil Water Potential of surface soils",
+   xlab="Treatment and Date", ylab="Soil Water Potential (MPa)")
+legend(x = -800, y = 5, # Coordinates
+       legend = c("Control", "Treatment 1", "Treatment 2"),
+       lty = c(1, 2, 3),
+       col = c(4, 6, 3),
+       lwd = 3)
+```
+
+```{r}
+#For Control soils
+data_control <- subset(data, data$Treatment  == "Control", )
+data_control
+
+
+linear_regression_plot <- ggplot(data = data_control, aes(x = SWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_SWP_treatment_type<- lm(SWP..MPa. ~ Date*Location , data = data_control)
+summary(linear_model_SWP_treatment_type)
+
+plot(linear_model_SWP_treatment_type)
+
+boxplot(SWP..MPa.~Date,data=data_control, main="Soil Water Potential of Control Surface Soils",
+   xlab="Date", ylab="Soil Water Potential (MPa)")
+#calculate averages for C soils 
+c.avg<- mean(data_control$SWP..MPa.)
+
+```
+
+```{r}
+#For Treatment 1 soils
+data_T1 <- subset(data, data$Treatment  == "SmallPulse", )
+data_T1
+
+
+linear_regression_plot <- ggplot(data = data_control, aes(x = SWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_SWP_treatmentT1_type<- lm(SWP..MPa. ~ Date*Location , data = data_T1)
+summary(linear_model_SWP_treatmentT1_type)
+
+plot(linear_model_SWP_treatmentT1_type)
+
+boxplot(SWP..MPa.~Date,data=data_T1, main="Soil Water Potential of Small Pulse Surface Soils",
+   xlab="Date", ylab="Soil Water Potential (MPa)")
+#calculate averages for T1 soils 
+
+```
+
+```{r}
+#For Treatment 2 soils
+data_T2 <- subset(data, data$Treatment  == "BigPulse", )
+data_T2
+
+
+linear_regression_plot <- ggplot(data = data_control, aes(x = SWP..MPa., y = Treatment)) +
+  geom_point(size=2, shape=1) +
+  theme_bw()+ geom_smooth(method=lm)
+linear_regression_plot
+
+linear_model_SWP_treatmentT2_type<- lm(SWP..MPa. ~ Date*Location , data = data_T2)
+summary(linear_model_SWP_treatmentT2_type)
+
+plot(linear_model_SWP_treatmentT2_type)
+
+boxplot(SWP..MPa.~Date,data=data_T2, main="Soil Water Potential of Big Pulse Surface Soils",
+   xlab="Date", ylab="Soil Water Potential (MPa)")
+```
+
+#geom ine, separate treatments over time, need IQR and error bars, using just the means. 
+```{r}
+CPlot <- ggplot(data = data_control, aes(x = Date, y = SWP..MPa.))+ geom_line(color = "red", lty = 1) +
+  theme_bw()
+T1Plot <- ggplot(data = data_T1, aes(x = Date, y = SWP..MPa.))+ geom_line(color = "orange", lty = 1) +
+  theme_bw()
+T2Plot <- ggplot(data = data_T2, aes(x = Date, y = SWP..MPa.))+ geom_line(color = "blue", lty = 1) +
+  theme_bw()
+
+multiplot<- plot_grid(CPlot, T1Plot, T2Plot, labels = c('Control', 'Treatment 1', 'Treatment 2'))
+multiplot 
+ggsave(multiplot,file = "multiplot.jpeg", width=15, height = 15, units = "in")
+```
+
+#07/20 works
+```{r}
+SWPPlot <- ggplot(data = data, aes(x = Date, y = SWP..MPa.)) + geom_point(aes(color = Treatment, shape= Treatment))
+  theme_bw()
+  SWPPlot
+  
+LPlot <- ggplot(data = data, aes(x = Date, y = SWP..MPa.)) + geom_point(aes(color = Location, shape= Treatment))
+  theme_bw()
+  LPlot
+
+ggsave(SWPPlot,file = "multiplot.jpeg", width=15, height = 15, units = "in")
+
+#cali fake data r script analysis on usb 
+```
+```{r}
+boxplot(SWP..MPa.~Date,data=data, main="Soil Water Potential of Treatment 2 Surface Soils",
+   xlab="Date", ylab="Soil Water Potential (Mpa)")
+
+
+```
+#from heather's code 
+# Reduce to one mean value for treatment per date -----------------------------------------------------
+```{r}
+SWP_trt_means <- data |> 
+  group_by(Date, Treatment) |> 
+  summarize(
+    N    = sum(!is.na(SWP..MPa.)),
+    mean.SWP = mean(SWP..MPa.),
+    sd_SWP   = sd(SWP..MPa., na.rm=TRUE), # not working at the moment...
+    se_SWP   = sd_SWP / sqrt(N) 
+  )
+
+# Quick plot -----------------------------------------------------
+
+SWP_plot<- SWP_trt_means |>
+  ggplot(aes(x = Date, y = mean.SWP)) +
+  geom_point(aes(color=Treatment)) +
+ geom_errorbar(aes(ymin=mean.SWP-se_SWP, ymax=mean.SWP+se_SWP)) +
+  geom_line(aes(color = Treatment))
+SWP_plot
+```
+
+#try again for treatment, location seprate graphs per location
+

@@ -1,0 +1,73 @@
+---
+title: "IRES 2023 Gobabeb Calicorema Thermal Camera"
+author: "Isabel Torres, Daisy Amaro, Avery Swanton, Ben Halenga"
+date: "7/28/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+## R Markdown for IRES thermal camera image processing 
+
+
+```{r}
+data<- read.csv("thermalcameradata.csv", header= TRUE)
+data
+
+data$treatment <- as.factor(data$treatment) # convert treatment from continuous variable to factor
+data$location <- as.factor(as.character(data$location)) # convert plant from continuous variable to factor
+data$date <- strptime(data$date, format = "%m/%d/%y") # parses date into a date that R understands - step1
+data$date <- as.POSIXct(data$date) # parses date into a date that R understands - step2
+```
+
+```{r}
+# look at all the image data first to check for strange values, etc
+data |>
+  filter(discard_AM == "N") |> # keep only the logs not flagged to be discarded
+  #filter(Photo > 0) |> # remove net respiration data
+  ggplot(aes(date, T_under_AM)) +
+  geom_point(aes(color = id, shape = treatment)) +
+  facet_grid(treatment ~ .,)
+
+
+```
+
+```{r}
+# Reduce to one mean value for temperature (and other key variables) each day day (AM/PM) -----------------------------------------------------
+# Also remove extra lines that are not being used for our mean values
+
+AM_under_means <- data |> 
+  filter(discard_AM == "N") |> # keep only the logs not flagged to be discarded
+  group_by(date, treatment, location, id) |> 
+  summarize(
+    T_under_AM = mean(T_under_AM),
+  ) 
+
+```
+
+```{r}
+# Reduce to one mean temp value  -----------------------------------------------------
+#We are comparing averages 
+
+dailyimage_means <- data |> 
+  filter(discard_AM == "N") |> # keep only the logs not flagged to be discarded
+  filter(discard_PM == "N") |> # remove the bad photos since the numbers seemed off
+  group_by(date, treatment, id, location) |> 
+  summarize(
+    temperature_under_AM = mean(T_under_AM),
+    logs = n(),
+    temperature_under_PM = mean(T_under_PM),
+    temperature_over_AM = mean(T_over_AM),
+    temperature_over_PM = mean(T_over_PM)
+   
+  ) 
+
+
+
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
