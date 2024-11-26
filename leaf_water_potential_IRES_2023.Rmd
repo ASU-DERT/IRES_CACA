@@ -25,7 +25,7 @@ library(tidyverse)
 ```
 
 ```{r P data import and summary}
-data <- read.csv("lwp.csv")
+data <- read.csv("https://www.dropbox.com/scl/fi/oclnvqznruo57vcuc41pd/lwp.csv?rlkey=ze4l2o8mb1jgetpd4unr1c2dj&st=dnj32mhq&dl=0)
 str(data)
 head(data)
 data$Location<- as.factor(data$Location)
