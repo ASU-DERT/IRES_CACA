@@ -8,7 +8,8 @@
 
 library(tidyverse)
 
-df_caca_sr_sumdat=read.csv("2023_CaCa_SoilRespiration_sumdata_L2.csv",header=TRUE) # reads in the soil respiration file
+#df_caca_sr_sumdat=read.csv("2023_CaCa_SoilRespiration_sumdata_L2.csv",header=TRUE) # reads in the soil respiration file
+df_caca_sr_sumdat=read.csv("https://www.dropbox.com/scl/fi/0vfcrvg0ls4sp870eayf1/2023_CaCa_SoilRespiration_sumdata_L2.csv?rlkey=ceve6x8zhprjjj5vs591hhvl9&st=6htubk1d&dl=1")
 df_caca_sr_sumdat$Treatment.type <- as.factor(df_caca_sr_sumdat$Treatment.type) # convert plant from continuous variable to factor
 df_caca_sr_sumdat$MsmtCycle <- as.factor(as.character(df_caca_sr_sumdat$MsmtCycle)) # convert plant from continuous variable to factor
 df_caca_sr_sumdat$Date <- strptime(df_caca_sr_sumdat$Date, format = "%m/%d/%y") # parses date into a date that R understands - step1
