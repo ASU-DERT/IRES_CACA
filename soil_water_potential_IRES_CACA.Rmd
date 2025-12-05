@@ -207,6 +207,30 @@ SWP_plot<- SWP_trt_means |>
   geom_line(aes(color = Treatment))
 SWP_plot
 ```
+#The same plot as above with better colors and labels
+```{r}
+SWP_plot <- SWP_trt_means |>
+  ggplot(aes(x = Date, y = mean.SWP)) +
+  geom_point(aes(color = Treatment)) +
+  geom_errorbar(aes(ymin = mean.SWP - se_SWP, ymax = mean.SWP + se_SWP)) +
+  geom_line(aes(color = Treatment)) +
+  scale_color_manual(
+    values = c(
+      "Control" = "#E66101",  # color-blind safe "vermillion"
+      "SmallPulse" = "#1B9E77",  # color-blind safe "bluish green"
+      "BigPulse" = "#56B4E9"   # color blind safe "sky blue"
+    )
+  ) +
+  
+  labs(
+    x = "Date",
+    y = "Soil water potential (MPa)"
+  ) +
+  theme_minimal()
+SWP_plot
+
+```
+
 
 #try again for treatment, location seprate graphs per location
 
