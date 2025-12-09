@@ -102,6 +102,8 @@ plot(linear_model_LWP_treatmentT1_type)
 boxplot(LWP..MPa.~Date,data=data_T1, main="Leaf Water Potential of Small Pulse Plants",
    xlab="Date", ylab="Leaf Water Potential (Mpa)")
 ```
+
+
 ```{r}
 #For Treatment 2 soils
 data_T2 <- subset(data, data$Treatment  == "BigPulse", )
