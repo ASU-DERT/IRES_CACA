@@ -1,0 +1,155 @@
+---
+title: "soil_resp_CACA"
+author: "Isabel Torres"
+format: html
+editor: visual
+---
+#IRES CACA 2023 
+#Data analysis for soil respiration data from the Calicorema Capitata experiment.
+
+
+## Loading packages and libraries
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+#Load in dataframe and format columns
+
+```{r}
+#|label: Load in data frames and format for coding in R.
+#df_caca_sr_sumdat=read.csv("2023_CaCa_SoilRespiration_sumdata_L2.csv",header=TRUE) # reads in the soil respiration file
+df_caca_sr_sumdat=read.csv("https://www.dropbox.com/scl/fi/0vfcrvg0ls4sp870eayf1/2023_CaCa_SoilRespiration_sumdata_L2.csv?rlkey=ceve6x8zhprjjj5vs591hhvl9&st=6htubk1d&dl=1")
+df_caca_sr_sumdat$Treatment.type <- as.factor(df_caca_sr_sumdat$Treatment.type) # convert plant from continuous variable to factor
+df_caca_sr_sumdat$Treatment.type<- trimws(df_caca_sr_sumdat$Treatment.type) #trim leading and follwing spaces
+
+df_caca_sr_sumdat$MsmtCycle <- as.factor(as.character(df_caca_sr_sumdat$MsmtCycle)) # convert plant from continuous variable to factor
+df_caca_sr_sumdat$Date <- strptime(df_caca_sr_sumdat$Date, format = "%m/%d/%y") # parses date into a date that R understands - step1
+df_caca_sr_sumdat$Date <- as.POSIXct(df_caca_sr_sumdat$Date) # parses date into a date that R understands - step2
+df_caca_sr_sumdat$EFFLUX <- as.numeric(df_caca_sr_sumdat$EFFLUX) # parses date into a date that R understands - step2
+
+### note - need to change HHMMSS using package hms only since R adds in today's date 
+df_caca_sr_sumdat$HHMMSS <- as.POSIXct((df_caca_sr_sumdat$HHMMSS), format="%H:%M:%S") #format time 
+df_caca_sr_sumdat$Plant <- as.factor(df_caca_sr_sumdat$Plant) # convert plant from continuous variable to factor
+```
+## Reduce to one efflux value per drawdown cycle -----------------------------------------------------
+# Also remove extra lines that are not being used for our mean values
+```{r}
+#|label: drawdown means and remove summary efflux values
+msmtcycle_means <- df_caca_sr_sumdat |> 
+  filter(Discard == "N") |> # keep only the logs not flagged to be discarded
+  filter(Mode == "3") |> # remove the summary efflux values (Mode == 4) and extra logs (Mode ==2) since we are not using them
+  group_by(Date, Plant, Treatment.type, MsmtCycle) |> 
+  summarize(
+    efflux = mean(EFFLUX),
+    logs = n(),
+    Tsoil_C = mean(Tsoil_C),
+    Tair = mean(Tair),
+    Time = mean(HHMMSS)
+  ) 
+```
+
+# Reduce to one mean efflux value per plant per day -----------------------------------------------------
+```{r}
+daily_plant_sr_means <- msmtcycle_means |> 
+  filter(efflux > 0) |> # keep only the efflux values that are positive (a few negative values from mode = 4 data, when not all points were logged)
+  group_by(Date, Plant, Treatment.type) |> 
+  summarize(
+    mean_efflux = mean(efflux), # grand mean of efflux values for each collar per day
+    n_cycles = n(), # number of measurement cycles
+    sd_efflux = sd(efflux, na.rm = TRUE),
+    se_efflux = sd_efflux/sqrt(n_cycles),
+    Tsoil_C = mean(Tsoil_C),
+    Tair = mean(Tair),
+    Msmt_Time = mean(Time)
+  ) 
+```
+
+#Figure: Daily soil respiration means by plant
+```{r}
+daily_plant_sr_means |>
+  ggplot(aes(Date, mean_efflux)) +
+  geom_point(aes(color = Plant, shape = Plant)) +
+  geom_line(aes(color = Plant, linetype = Plant)) +
+  geom_errorbar(aes(ymin = mean_efflux - se_efflux, ymax = mean_efflux + se_efflux), 
+                linewidth = 0.4, 
+                position = position_dodge(0.3), # not working... error bars should be offset slightly
+                width = 0.2) + 
+  facet_grid(Treatment.type ~ .,)
+```
+
+# Figure: box plot of Treatment.type differences in soil respiration
+# currently we have one measurement per plant (no repeats among days) -- we will need to consider 
+# repeated sampling when adding more data
+```{r}
+daily_plant_sr_means |>
+  ggplot(aes(Treatment.type, mean_efflux)) +
+  geom_boxplot()
+```
+
+
+# ANOVA of Treatment.type differences (note that data have not been normalized)
+
+```{r}
+Treatment.type_sr_aov <- aov(mean_efflux ~ Treatment.type, data = daily_plant_sr_means)
+summary(Treatment.type_sr_aov)
+```
+
+# Explore how soil respiration varies with soil temperature
+```{r}
+daily_plant_sr_means |>
+  filter(Tsoil_C > 0) |> # keep only the logs where Tsoil is greater than 0 (negative values are due to non-functioning soil T probe)
+  ggplot(aes(Tsoil_C, mean_efflux)) +
+  geom_point(aes(color=Treatment.type, shape = Treatment.type))
+```
+
+# Daily mean differences between Treatment.types  -----------------------------------------------------
+```{r}
+
+
+daily_Treatment.type_sr_means <- daily_plant_sr_means |> 
+  group_by(Date, Treatment.type) |> 
+  summarize(
+    efflux_by_Treatment.type = mean(mean_efflux), # grand mean of efflux values for each collar per day
+    n_plants = n(), # number of measurement cycles
+    sd_efflux = sd(mean_efflux, na.rm = TRUE),
+    se_efflux = sd_efflux/sqrt(n_plants)
+  ) 
+
+# plot Treatment.type means for each day
+daily_Treatment.type_sr_means |>
+  ggplot(aes(Date, efflux_by_Treatment.type)) +
+  geom_point(aes(color = Treatment.type, shape = Treatment.type)) +
+  geom_line(aes(color = Treatment.type, linetype = Treatment.type)) +
+  geom_errorbar(aes(ymin = efflux_by_Treatment.type - se_efflux, ymax = efflux_by_Treatment.type + se_efflux), 
+                linewidth = 0.4, 
+                position = position_dodge(0.3), # not working... error bars should be offset slightly
+                width = 0.2) 
+```
+
+#Same as above but with color-blind friendly colors
+#
+```{r}
+
+
+daily_Treatment.type_sr_means <- daily_plant_sr_means |> 
+  group_by(Date, Treatment.type) |> 
+  summarize(
+    efflux_by_Treatment.type = mean(mean_efflux), # grand mean of efflux values for each collar per day
+    n_plants = n(), # number of measurement cycles
+    sd_efflux = sd(mean_efflux, na.rm = TRUE),
+    se_efflux = sd_efflux/sqrt(n_plants)
+  ) 
+
+# plot Treatment.type means for each day
+daily_Treatment.type_sr_means |>
+  ggplot(aes(Date, efflux_by_Treatment.type)) +
+  geom_point(aes(color = Treatment.type, shape = Treatment.type)) +
+  geom_line(aes(color = Treatment.type, linetype = Treatment.type)) +
+#insert scale color manual
+  geom_errorbar(aes(ymin = efflux_by_Treatment.type - se_efflux, ymax = efflux_by_Treatment.type + se_efflux), 
+                linewidth = 0.4, 
+                position = position_dodge(0.3), # not working... error bars should be offset slightly
+                width = 0.2) 
+```
