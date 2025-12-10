@@ -151,7 +151,7 @@ ggsave(LWPPlot,file = "multiplot.jpeg", width=15, height = 15, units = "in")
 #cali fake data r script analysis on usb 
 ```
 # Reduce to one mean value for treatment per date -----------------------------------------------------
-from heather's code 
+#from heather's code 
 # Reduce to one mean value for treatment per date -----------------------------------------------------
 ```{r}
 LWP_trt_means <- data |> 
@@ -172,3 +172,28 @@ LWP_plot<- LWP_trt_means |>
   geom_line(aes(color = Treatment))
 LWP_plot
 ```
+
+#Reduce to one mean value for treatment per date------------------------------------------------------
+#The same as above but with color blind friendly colors
+```{r}
+LWP_plot <- LWP_trt_means |>
+  ggplot(aes(x = Date, y = mean.LWP)) +
+  geom_point(aes(color = Treatment)) +
+  geom_errorbar(aes(ymin = mean.LWP - se_LWP, ymax = mean.LWP + se_LWP)) +
+  geom_line(aes(color = Treatment)) +
+  scale_color_manual(
+    values = c(
+      "Control" = "#E66101",  # color-blind safe "vermillion"
+      "SmallPulse" = "#1B9E77",  # color-blind safe "bluish green"
+      "BigPulse" = "#56B4E9"   # color blind safe "sky blue"
+    )
+  ) +
+  
+  labs(
+    x = "Date",
+    y = "Leaf water potential (MPa)"
+  ) +
+  theme_minimal()
+LWP_plot
+```
+
