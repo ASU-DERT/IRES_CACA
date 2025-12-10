@@ -4,9 +4,8 @@ author: "Isabel Torres"
 format: html
 editor: visual
 ---
-#IRES CACA 2023 
-#Data analysis for soil respiration data from the Calicorema Capitata experiment.
 
+#IRES CACA 2023 #Data analysis for soil respiration data from the Calicorema Capitata experiment.
 
 ## Loading packages and libraries
 
@@ -33,8 +32,11 @@ df_caca_sr_sumdat$EFFLUX <- as.numeric(df_caca_sr_sumdat$EFFLUX) # parses date i
 df_caca_sr_sumdat$HHMMSS <- as.POSIXct((df_caca_sr_sumdat$HHMMSS), format="%H:%M:%S") #format time 
 df_caca_sr_sumdat$Plant <- as.factor(df_caca_sr_sumdat$Plant) # convert plant from continuous variable to factor
 ```
+
 ## Reduce to one efflux value per drawdown cycle -----------------------------------------------------
+
 # Also remove extra lines that are not being used for our mean values
+
 ```{r}
 #|label: drawdown means and remove summary efflux values
 msmtcycle_means <- df_caca_sr_sumdat |> 
@@ -51,6 +53,7 @@ msmtcycle_means <- df_caca_sr_sumdat |>
 ```
 
 # Reduce to one mean efflux value per plant per day -----------------------------------------------------
+
 ```{r}
 daily_plant_sr_means <- msmtcycle_means |> 
   filter(efflux > 0) |> # keep only the efflux values that are positive (a few negative values from mode = 4 data, when not all points were logged)
@@ -67,6 +70,7 @@ daily_plant_sr_means <- msmtcycle_means |>
 ```
 
 #Figure: Daily soil respiration means by plant
+
 ```{r}
 daily_plant_sr_means |>
   ggplot(aes(Date, mean_efflux)) +
@@ -80,14 +84,16 @@ daily_plant_sr_means |>
 ```
 
 # Figure: box plot of Treatment.type differences in soil respiration
-# currently we have one measurement per plant (no repeats among days) -- we will need to consider 
+
+# currently we have one measurement per plant (no repeats among days) -- we will need to consider
+
 # repeated sampling when adding more data
+
 ```{r}
 daily_plant_sr_means |>
   ggplot(aes(Treatment.type, mean_efflux)) +
   geom_boxplot()
 ```
-
 
 # ANOVA of Treatment.type differences (note that data have not been normalized)
 
@@ -97,6 +103,7 @@ summary(Treatment.type_sr_aov)
 ```
 
 # Explore how soil respiration varies with soil temperature
+
 ```{r}
 daily_plant_sr_means |>
   filter(Tsoil_C > 0) |> # keep only the logs where Tsoil is greater than 0 (negative values are due to non-functioning soil T probe)
@@ -104,7 +111,8 @@ daily_plant_sr_means |>
   geom_point(aes(color=Treatment.type, shape = Treatment.type))
 ```
 
-# Daily mean differences between Treatment.types  -----------------------------------------------------
+# Daily mean differences between Treatment.types -----------------------------------------------------
+
 ```{r}
 
 
@@ -128,8 +136,8 @@ daily_Treatment.type_sr_means |>
                 width = 0.2) 
 ```
 
-#Same as above but with color-blind friendly colors
-#
+#Same as above but with color-blind friendly colors \#
+
 ```{r}
 
 
@@ -144,12 +152,32 @@ daily_Treatment.type_sr_means <- daily_plant_sr_means |>
 
 # plot Treatment.type means for each day
 daily_Treatment.type_sr_means |>
-  ggplot(aes(Date, efflux_by_Treatment.type)) +
-  geom_point(aes(color = Treatment.type, shape = Treatment.type)) +
-  geom_line(aes(color = Treatment.type, linetype = Treatment.type)) +
-#insert scale color manual
-  geom_errorbar(aes(ymin = efflux_by_Treatment.type - se_efflux, ymax = efflux_by_Treatment.type + se_efflux), 
-                linewidth = 0.4, 
-                position = position_dodge(0.3), # not working... error bars should be offset slightly
-                width = 0.2) 
+  ggplot(aes(Date, efflux_by_Treatment.type, color = Treatment.type)) +
+  geom_point(aes(shape = Treatment.type)) +
+  geom_line(aes(linetype = Treatment.type)) +
+  scale_color_manual(
+    values = c(
+      "Control"    = "#E66101",  # color-blind safe "vermillion"
+      "SmallPulse" = "#1B9E77",  # "bluish green"
+      "BigPulse"   = "#56B4E9"   # "sky blue"
+    )
+  ) +
+  labs(
+    x = "Date",
+    y = expression(paste("Mean soil respiration (CO"[2], ")"))
+  ) +
+  theme_minimal() +
+  geom_errorbar(
+    aes(
+      ymin = efflux_by_Treatment.type - se_efflux,
+      ymax = efflux_by_Treatment.type + se_efflux
+    ),
+    linewidth = 0.4,
+    position = position_dodge(0.3),
+    width = 0.2
+  )
+
 ```
+
+
+
