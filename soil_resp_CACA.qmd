@@ -178,6 +178,3 @@ daily_Treatment.type_sr_means |>
   )
 
 ```
-
-
-
