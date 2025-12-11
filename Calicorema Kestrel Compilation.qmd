@@ -1,0 +1,217 @@
+---
+title: "Kestrel compilation for Calicorema"
+author: "Heather Throop"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+# Overview
+
+This script reads in csv files from individual Kestrel loggers, merges the files, and synthesizes the data.
+
+This was created for the Calicorema group during the 2023 IRES at Gobabeb.
+
+Created July 27, 2023 Heather Throop\
+\
+To run this code, all raw Kestrel files should be placed within a folder titled "kestrel data". The "kestrel data" folder should be placed in the same folder as this .qmd file (this will be your working directory or the location of your R project).
+
+Make sure you have the following packages installed:
+
+```{r}
+#| label: load-packages
+library(here) # v. 0.1
+library(stringr) # v. 1.2.0
+library(purrr) # v. 0.2.3
+library(tidyverse)
+library(scales)
+```
+
+Display information about package versions in use when this code was run.
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
+
+# Read and Clean Data
+
+### List Kestrel Files
+
+Note that the "more columns than column names" error is likely to happen. Find the offending file (use the last line of code in this chunk to do so) and delete extra columns to the right of the data.\
+\
+Much of this code is based on the commentary from: https://aosmith.rbind.io/2017/12/31/many-datasets/ . You can read further details on this approach there.
+
+```{r}
+# list all files to read in
+allfiles = list.files(path = here("L0 kestrel data"), # get a list of all files in the "kestrel data" folder
+            pattern = ".csv", # only files that end in .csv
+            full.names = TRUE)  # return the complete file path (and not just the file name)
+
+# reading and extract loggerID
+read_fun = function(path) {
+  test = read.csv(path, 
+                  skip = 5,
+                  header = FALSE,
+                  col.names = c("datetime", "temperature", "RH", "heatindex", "dewpoint", "datatype") )
+  allnames = str_split( path, pattern = "/", simplify = TRUE)
+ test$loggerID = str_extract(allnames[, ncol(allnames)], pattern = "2[0-9][0-9][0-9][0-9][0-9][0-9]") #extract the loggerID from the file name and add as a column
+  test$RH <- as.numeric(as.character(test$RH))
+  test$heatindex <- as.numeric(as.character(test$heatindex))
+  test$dewpoint <- as.numeric(as.character(test$dewpoint))
+  test$temperature <- as.numeric(as.character(test$temperature))
+  test$loggerID <- as.numeric(as.character(test$loggerID))
+  test
+}
+
+# Line below is useful for testing if logger name is being assigned
+# change the number in brackets to check show the top section of each file
+read_fun(allfiles[1]) # use to test the function on an individual file
+
+```
+
+### Read in and Combine Files
+
+```{r}
+#| label: combine-kestrel-files
+combined_kestrel_notcleaned = map_dfr(allfiles, read_fun) # combine all the files
+combined_kestrel_notcleaned$loggertype <- "Kestrel" #add a column for the kind of logger used (Kestrel in this case)
+
+# check that we have the right number of loggers in the file
+combined_kestrel_notcleaned |>
+  group_by(loggerID) |> 
+  summarize(n = n())
+
+# Add in microsite and block information
+df_loggers <- read.csv("Kestrel_IDs.csv", header = TRUE)
+df_loggers$loggerID <- as.numeric(df_loggers$loggerID)
+combined_kestrel_notcleaned <- combined_kestrel_notcleaned |>
+  left_join(df_loggers, join_by(loggerID))
+
+```
+
+### Time formatting
+
+Check that the time column is populated *for all loggers*. If not, the format might be incorrect - sometimes Kestels are set to send the datetime output in different formats. This code attempts to bet-hedge by re-formatting from two of the most common datetime formats.
+
+```{r}
+#| label: Fix-datetime-formatting 
+
+# the Kestels may have two (or more) different date/time formats - do one set here
+combined_kestrel_notcleaned_a <- combined_kestrel_notcleaned # make duplicate df 
+combined_kestrel_notcleaned_a$time <- strptime(combined_kestrel_notcleaned_a$datetime, format = "%Y-%m-%d %H:%M:%S", tz = "Africa/Johannesburg") # convert date and time into a time object
+combined_kestrel_notcleaned_a <- combined_kestrel_notcleaned_a[!(is.na(combined_kestrel_notcleaned_a$time)), ]
+
+# convert the remainning another set here
+combined_kestrel_notcleaned_b <- combined_kestrel_notcleaned # make duplicate df 
+combined_kestrel_notcleaned_b$time <- strptime(combined_kestrel_notcleaned_b$datetime, format = "%m/%d/%y %H:%M", tz = "Africa/Johannesburg") # convert date and time into a time object
+combined_kestrel_notcleaned_b <- combined_kestrel_notcleaned_b[!(is.na(combined_kestrel_notcleaned_b$time)), ]
+
+# now merge the two dfs - this should bring us back to the original number of observations, all of which should have a datetime in the new "time" column
+combined_kestrel_notcleaned <- rbind(combined_kestrel_notcleaned_a, combined_kestrel_notcleaned_b) 
+
+combined_kestrel_notcleaned$time <- as.POSIXct(combined_kestrel_notcleaned$time) # parses date into the POSIXct format 
+
+# remove any data before the deployment date
+# NOTE THAT THE DATE MAY NEED TO BE ADJUSTED - PLACE THE DESIRED START DATE BELOW
+L2_kestrel_data <-combined_kestrel_notcleaned[combined_kestrel_notcleaned[["time"]] >= "2021-07-04", ]  
+
+#save the output as a .csv file
+write.csv(L2_kestrel_data, "combined_kestrel_notcleaned.csv") 
+
+# check the data carefully to see if any additional cleaning is needed!
+```
+
+Note: Before moving on to the next step, it is important to check the data to make sure that no additional cleaning is needed.
+
+# Individual Logger Plots
+
+Below are separate plots for each logger (grouped by treatment). These are intended to check the data (e.g., gaps in logs for different loggers and correct number of loggers per site).
+
+## RH
+
+note - probably you'll want to play around with scale_x_datetime to give yourself some appropriate x axis scales.
+
+```{r}
+#| label: RH-plot
+
+L2_kestrel_data |>
+  ggplot(aes(x=time, y=RH, color = Treatment, group = 1)) + 
+    labs(title = " ") +
+    geom_line() +
+    xlab(" ") +
+    ylab("RH (%)") +
+    scale_x_datetime(date_breaks = "4 hour", labels = date_format("%m%d %H%m")) +
+    facet_grid(loggerID ~ .) 
+
+```
+
+## Temperature
+
+```{r}
+
+L2_kestrel_data |>
+  ggplot(aes(x=time, y=temperature, color = Treatment, group = 1)) + 
+    labs(title = " ") +
+    geom_line() +
+    xlab(" ") +
+    ylab("Temperature (C)") +
+    scale_x_datetime(date_breaks = "4 hour", labels = date_format("%m%d %H%m")) +
+    facet_grid(loggerID ~ .) 
+
+```
+
+# Treatment Means
+
+*Check that the tibble output after running this chunk looks reasonable. N should equal the expected number of loggers. There should be values for SD and SE, assuming that there is more than one logger for each time point.*
+
+```{r}
+#| label: hourly-treatment-means
+# create df that condenses the multiple loggers per Treatment down to one mean value per hour
+
+Kestrel_hourlymeans_df <- L2_kestrel_data |>
+  group_by(Treatment, time) |>
+  summarize(
+               N    = sum(!is.na(RH)),
+               mean_T = mean(temperature, na.rm=TRUE),
+               sd_T   = sd(temperature, na.rm=TRUE),
+               se_T   = sd_T / sqrt(N),
+               mean_RH = mean(RH, na.rm=TRUE),
+               sd_RH   = sd(RH, na.rm=TRUE),
+               se_RH   = sd_RH / sqrt(N)
+               )
+Kestrel_hourlymeans_df
+
+```
+
+## Plots of hourly means
+
+### RH
+
+```{r}
+#| label: RH-by-treatment
+
+# plots of hourly means by treatment - RH
+ggplot(Kestrel_hourlymeans_df, aes(x=time, y=mean_RH, color = Treatment, group = 1)) + 
+  geom_point() +
+  theme_bw() +
+  ylab("Relative Humidity (%)") +
+  xlab("") 
+ # scale_x_date(limits = as.Date(c("2021-03-01", "2022-11-01")))
+
+```
+
+### Temperature
+
+```{r}
+#| label: temperature-by-treatment
+
+# plots of hourly means by treatment - temperature
+ggplot(Kestrel_hourlymeans_df, aes(x=time, y=mean_T, color = Treatment, group = 1)) + 
+  geom_point() +
+  theme_bw() +
+  ylab("Temperature (C)") +
+  xlab("") 
+ # scale_x_date(limits = as.Date(c("2021-03-01", "2022-11-01")))
+```
