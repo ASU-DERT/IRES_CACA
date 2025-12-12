@@ -26,8 +26,8 @@ library(stringr) # v. 1.2.0
 library(purrr) # v. 0.2.3
 library(tidyverse)
 library(scales)
+library(readr)
 ```
-
 
 # Read and Clean Data
 
@@ -54,15 +54,67 @@ links<- c(
   "https://www.dropbox.com/scl/fi/qk19sh6rp93zdyuwgxgm5/D2_-_2592691_Jul_29_2023_10_40_00-2.csv?rlkey=gat5cavgfd2q94ree2nqwvkej&st=g6523aqw&dl=0"
 )
 
-##convert dl=0 to dl=1
+##convert to a direct download by changing "dl=0" to "dl=1"
 direct_links<- sub("dl=0", "dl=1", links, fixed = TRUE)
 #load all of them 
-data_list<- lapply(direct_links, read.csv)
+
+data_list <- lapply(direct_links, function(u) {
+  read_csv(
+    u,
+    skip = 5,              #skip the metadata rows (Device Name, Device Model...)
+    show_col_types = FALSE
+  )
+})
+
+
+
+
+#remove rows with NA's after data blocks
+data_list_clean <- lapply(data_list, function(df) {
+  df %>% 
+    # keep only the first 6 columns (up to Data Type)
+    select(1:6) %>% 
+    # keep rows where the timestamp is not NA (drops any empty rows)
+    filter(!is.na(`yyyy-MM-dd hh:mm:ss a`))
+})
+
+```
+
+```{r}
+# 1. Rename columns & drop Data Type
+# 1. Rename columns & drop Data Type
+data_list_clean <- lapply(data_list_clean, function(df) {
+  df %>%
+    rename(
+      datetime       = `yyyy-MM-dd hh:mm:ss a`,
+      temp_c         = `°C...2`,
+      rel_humidity   = `%`,
+      heat_index_c   = `°C...4`,
+      dew_point_c    = `°C...5`,
+      data_type      = `Data Type`
+    ) %>%
+    select(-data_type)   # drop if it's always "point"
+})
+
+# extract filenames from direct links
+filenames <- basename(sub("\\?.*$", "", direct_links))
+
+# extract logger ID (7-digit number)
+logger_ids <- str_extract(filenames, "\\d{7}")
+
+# name each logger’s dataset
+names(data_list_clean) <- logger_ids
+
+# combine into one dataset with logger_id column
+combined <- bind_rows(data_list_clean, .id = "logger_id")
+
+
+
 
 
 ```
 
-
+#GRAVEYARD: HT code from here down....
 ```{r}
 
 
