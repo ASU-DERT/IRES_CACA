@@ -81,37 +81,79 @@ data_list_clean <- lapply(data_list, function(df) {
 ```
 
 ```{r}
-# 1. Rename columns & drop Data Type
-# 1. Rename columns & drop Data Type
-data_list_clean <- lapply(data_list_clean, function(df) {
-  df %>%
-    rename(
-      datetime       = `yyyy-MM-dd hh:mm:ss a`,
-      temp_c         = `°C...2`,
-      rel_humidity   = `%`,
-      heat_index_c   = `°C...4`,
-      dew_point_c    = `°C...5`,
-      data_type      = `Data Type`
-    ) %>%
-    select(-data_type)   # drop if it's always "point"
+library(dplyr)
+library(stringr)
+
+## 1. Start from the raw list you read with read_csv()
+##    (assumes you already have: data_list <- lapply(direct_links, read_csv(...)))
+
+data_list_clean <- lapply(data_list, function(df) {
+  # keep first 6 columns (datetime + 4 values + data type)
+  df6 <- df[, 1:6]
+
+  # give them standard names by position
+  names(df6) <- c(
+    "datetime",
+    "temp_c",
+    "rel_humidity",
+    "heat_index_c",
+    "dew_point_c",
+    "data_type"
+  )
+
+  # drop data_type if it's always "point"
+  df6 %>%
+    filter(!is.na(datetime)) %>%  # just in case
+    select(-data_type)
 })
 
-# extract filenames from direct links
+## 2. Extract filenames from URLs
 filenames <- basename(sub("\\?.*$", "", direct_links))
 
-# extract logger ID (7-digit number)
+## 3. Extract logger IDs (7-digit number in filename)
 logger_ids <- str_extract(filenames, "\\d{7}")
 
-# name each logger’s dataset
+## 4. Name each element of the clean list by logger ID
 names(data_list_clean) <- logger_ids
 
-# combine into one dataset with logger_id column
+## 5. Combine into one big data frame
 combined <- bind_rows(data_list_clean, .id = "logger_id")
 
+## 6. (Optional) Nice human-readable datetime column
+combined <- combined %>%
+  mutate(
+    datetime_friendly = format(datetime, "%B %d, %Y %I:%M %p")
+  )
+
+# 7. Separate the date and time into separate columns in the "combined" df 
+combined<- combined |>
+  mutate(
+    date = as.Date(datetime),
+    time = format(datetime, "%H:%M:%S" )
+  )
+
+## NEW; need to check; Add in microsite and block information; need correct kestrel IDs and file. File on google drive is a test file heather used
+df_loggers <- read.csv("/Users/isabeltorres/Documents/GitHub/IRES_CACA/Kestrel_IDs.csv", header = TRUE)
+df_loggers$loggerID <- as.numeric(df_loggers$loggerID)
+combined.logger.id<- combined |>
+  left_join(df_loggers, join_by(loggerID))
+
+# #. Remove any data recorded before the start date of the experiment
+L1.combined.kestrel.data<- combined[combined[["date"]] >= "2023-07-04", ]  
+```
 
 
+```{r}
+#| label: RH-plot
 
-
+L1.combined.kestrel.data |>
+  ggplot(aes(x=time, y=RH, color = Treatment, group = 1)) + 
+    labs(title = " ") +
+    geom_line() +
+    xlab(" ") +
+    ylab("RH (%)") +
+    scale_x_datetime(date_breaks = "4 hour", labels = date_format("%m%d %H%m")) +
+    facet_grid(logger_id ~ .) 
 ```
 
 #GRAVEYARD: HT code from here down....
