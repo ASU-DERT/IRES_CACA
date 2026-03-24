@@ -142,12 +142,11 @@ combined.logger.id<- combined |>
 L1.combined.kestrel.data<- combined[combined[["date"]] >= "2023-07-04", ]  
 ```
 
-
 ```{r}
 #| label: RH-plot
 
 L1.combined.kestrel.data |>
-  ggplot(aes(x=time, y=RH, color = Treatment, group = 1)) + 
+  ggplot(aes(x= datetime, y=rel_humidity, color = logger_id, group = 1)) + 
     labs(title = " ") +
     geom_line() +
     xlab(" ") +
@@ -157,6 +156,7 @@ L1.combined.kestrel.data |>
 ```
 
 #GRAVEYARD: HT code from here down....
+
 ```{r}
 
 
