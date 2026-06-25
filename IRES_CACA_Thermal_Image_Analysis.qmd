@@ -1,0 +1,116 @@
+---
+title: "IRES_CACA_thermal_image_analysis"
+author: "Isabel Torres"
+format: html
+editor: visual
+---
+
+## Project Background 
+
+Thermal camera images from IRES 2023 CACA project. Images were taken using a FLIR camera iPhone attachment. GitHub: https://github.com/joaofgoncalves/ThermalRaster
+#Load in packages
+```{r}
+
+library(ThermalRaster)
+library(terra)
+library(dplyr)
+library(ggplot2)
+
+```
+
+#Image file load in 
+```{r}
+# Image path in sample data
+#image_path <- "/Users/isabeltorres/Desktop/ires/thermalcamera/20230725_ungr8fuldead_725pm.JPG"
+
+# Provide here the folder path where the EXIFtool executale is
+# NOTE: The executable must be named exiftool
+ #"/opt/homebrew/bin/exiftool"
+
+library(ThermalRaster)
+
+image_path <- "/Users/isabeltorres/Desktop/ires/thermalcamera/20230725_ungr8fuldead_725pm.JPG"
+exiftool_path <- dirname(Sys.which("exiftool"))
+#Plot the FLIR image with RGB 
+thumb <- flir_thumbnail_to_rast(image_path)
+
+plotRGB(thumb)
+
+#Check the full RGB 
+# full RGB embedded in the FLIR JPEG
+tmp_rgb <- file.path(tempdir(), "flir_rgb.jpg")
+
+system2(
+  Sys.which("exiftool"),
+  args = c("-b", "-EmbeddedImage", shQuote(image_path)),
+  stdout = tmp_rgb
+)
+
+rgb_hr <- terra::rast(tmp_rgb)
+plotRGB(rgb_hr)
+
+#checking the size of rgb to determine if we should zoom in on a specific area-basically read in the image without RGB to see the AOI clearly to help determine if we need to crop:
+plotRGB(rgb_hr, main = "Full RGB (1440x1080")
+#Read in the original image with thermal imagery:
+plot_temp_rast(temp, palette = "magma")
+#cropping the image using Terra for Mac 
+#check dimensions and extents
+dim(rgb_hr)
+dim(temp)
+ext(rgb_hr)
+ext(temp)
+
+#align RGB with and thermal image
+rgb_match<- resample(rgb_hr, temp, method = "bilinear")
+
+#verify your output 
+dim(rgb_match)
+dim(temp)
+
+#crop the AOI
+rgb_crop<- crop(rgb_hr, 
+                ext(200, 880, 250, 1215))
+plotRGB(rgb_crop)
+
+#Exploring images side by side
+par(mfrow = c(1, 2), mar = c(2, 2, 3, 2))
+
+plotRGB(rgb_match, main = "RGB")
+
+plot_temp_rast(
+  temp,
+  palette = "magma",
+  main = "Thermal (°C)"
+)
+
+par(mfrow = c(1, 1))
+
+#Finding an ROI and extracting temperatures 
+library(terra)
+
+# view the thermal image
+plot(temp)
+
+# click around the understory area under one shrub
+# press Esc when you are done
+pts <- locator()
+
+# close the polygon
+xy <- cbind(pts$x, pts$y)
+xy <- rbind(xy, xy[1, ])
+
+# make a polygon ROI
+roi <- vect(list(xy), type = "polygons", crs = crs(temp))
+
+# pull out all temperature values in that ROI
+vals <- extract(temp, roi)[,2]
+
+# summary stats for that shrub understory
+mean(vals, na.rm = TRUE)
+median(vals, na.rm = TRUE)
+sd(vals, na.rm = TRUE)
+range(vals, na.rm = TRUE)
+```
+
+
+
