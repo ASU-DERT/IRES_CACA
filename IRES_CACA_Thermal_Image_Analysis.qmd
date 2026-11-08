@@ -5,10 +5,10 @@ format: html
 editor: visual
 ---
 
-## Project Background 
+## Project Background
 
-Thermal camera images from IRES 2023 CACA project. Images were taken using a FLIR camera iPhone attachment. GitHub: https://github.com/joaofgoncalves/ThermalRaster
-#Load in packages
+Thermal camera images from IRES 2023 CACA project. Images were taken using a FLIR camera iPhone attachment. GitHub: https://github.com/joaofgoncalves/ThermalRaster #Load in packages
+
 ```{r}
 
 library(ThermalRaster)
@@ -18,7 +18,8 @@ library(ggplot2)
 
 ```
 
-#Image file load in 
+#Image file load in
+
 ```{r}
 # Image path in sample data
 #image_path <- "/Users/isabeltorres/Desktop/ires/thermalcamera/20230725_ungr8fuldead_725pm.JPG"
@@ -111,6 +112,3 @@ median(vals, na.rm = TRUE)
 sd(vals, na.rm = TRUE)
 range(vals, na.rm = TRUE)
 ```
-
-
-
